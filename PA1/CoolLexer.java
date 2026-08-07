@@ -23,6 +23,7 @@ class CoolLexer implements java_cup.runtime.Scanner {
     static int MAX_STR_CONST = 1025;
     // For assembling string constants
     StringBuffer string_buf = new StringBuffer();
+    private int comment_depth = 0;
     private int curr_lineno = 1;
     int get_curr_lineno() {
 	return curr_lineno;
@@ -75,9 +76,13 @@ class CoolLexer implements java_cup.runtime.Scanner {
 	}
 
 	private boolean yy_eof_done = false;
+	private final int STRING = 2;
 	private final int YYINITIAL = 0;
+	private final int COMMENT = 1;
 	private final int yy_state_dtrans[] = {
-		0
+		0,
+		19,
+		17
 	};
 	private void yybegin (int state) {
 		yy_lexical_state = state;
@@ -237,21 +242,41 @@ class CoolLexer implements java_cup.runtime.Scanner {
 		/* 16 */ YY_NO_ANCHOR,
 		/* 17 */ YY_NO_ANCHOR,
 		/* 18 */ YY_NO_ANCHOR,
-		/* 19 */ YY_NO_ANCHOR
+		/* 19 */ YY_NOT_ACCEPT,
+		/* 20 */ YY_NO_ANCHOR,
+		/* 21 */ YY_NO_ANCHOR,
+		/* 22 */ YY_NO_ANCHOR,
+		/* 23 */ YY_NO_ANCHOR,
+		/* 24 */ YY_NO_ANCHOR,
+		/* 25 */ YY_NO_ANCHOR,
+		/* 26 */ YY_NO_ANCHOR,
+		/* 27 */ YY_NO_ANCHOR,
+		/* 28 */ YY_NO_ANCHOR,
+		/* 29 */ YY_NO_ANCHOR,
+		/* 30 */ YY_NO_ANCHOR,
+		/* 31 */ YY_NO_ANCHOR,
+		/* 32 */ YY_NO_ANCHOR,
+		/* 33 */ YY_NO_ANCHOR,
+		/* 34 */ YY_NO_ANCHOR,
+		/* 35 */ YY_NO_ANCHOR
 	};
 	private int yy_cmap[] = unpackFromString(1,130,
-"17:8,7:2,8,17,7:2,17:18,7,17:15,16:10,17:3,1,2,17:2,9,10,11,10:8,12,10:6,13" +
-",10:7,17:4,14,17,5,15,3,15:8,4,15:6,6,15:7,17:5,0:2")[0];
+"4,24:8,12,14,12:2,13,24:18,12,24,23,24:5,5,7,6,24:2,3,24:2,22:10,24:3,1,2,2" +
+"4:2,15,16,17,16:8,18,16:6,19,16:7,24:4,20,24,10,21,8,21:8,9,21:6,11,21:7,24" +
+":5,0:2")[0];
 
-	private int yy_rmap[] = unpackFromString(1,20,
-"0,1,2,3,1:2,4,5,1,6,1,7,8,4,9,10,11,12,6,13")[0];
+	private int yy_rmap[] = unpackFromString(1,36,
+"0,1,2,3,1:2,4,5,1:2,6,1:2,7,1:3,8,1,9,1,10,11,4,12,13,14,15,16,17,18,19,20," +
+"21,7,22")[0];
 
-	private int yy_nxt[][] = unpackFromString(14,18,
-"1,2,10,3,18:3,4,5,6:2,19,6:2,10,18,7,10,-1:20,8,-1:18,18,16,18:2,-1:2,18:3," +
-"16,18:4,-1:4,6:4,-1:2,6:8,-1:17,7,-1:4,18:4,-1:2,18:8,-1:4,18:3,9,-1:2,18:4" +
-",9,18:3,-1:4,6:3,13,-1:2,6:4,13,6:3,-1:4,18:3,11,-1:2,18:4,11,18:3,-1:4,6:3" +
-",12,-1:2,6:4,12,6:3,-1:4,18:2,14,18,-1:2,14,18:7,-1:4,6:2,15,6,-1:2,15,6:7," +
-"-1:4,6,17,6:2,-1:2,6:3,17,6:4,-1");
+	private int yy_nxt[][] = unpackFromString(23,25,
+"1,2,20,26,20,28,29,20,3,34:3,4:2,5,6:2,35,6:2,20,34,7,8,20,-1:27,9,-1:30,34" +
+",32,34:2,-1:3,34:3,32,34:4,-1:10,6:4,-1:3,6:8,-1:24,7,-1:3,10:12,-1:2,10:10" +
+",-1:8,34:4,-1:3,34:8,-1:2,1,25:3,20,25:9,5,25:8,18,25,1,14:4,24,27,14:6,-1," +
+"5,14:10,-1:8,34:3,13,-1:3,34:4,13,34:3,-1:10,6:3,23,-1:3,6:4,23,6:3,-1:8,15" +
+",-1:19,25:3,-1,25:9,-1,25:8,-1,25,-1:3,10,-1:28,16,-1:23,11,-1:25,12,-1:25," +
+"34:3,21,-1:3,34:4,21,34:3,-1:10,6:3,22,-1:3,6:4,22,6:3,-1:10,34:2,30,34,-1:" +
+"3,30,34:7,-1:10,6:2,31,6,-1:3,31,6:7,-1:10,6,33,6:2,-1:3,6:3,33,6:4,-1:2");
 
 	public java_cup.runtime.Symbol next_token ()
 		throws java.io.IOException {
@@ -283,6 +308,12 @@ class CoolLexer implements java_cup.runtime.Scanner {
  *  Ultimately, you should return the EOF symbol, or your lexer won't
  *  work.  */
     switch(yy_lexical_state) {
+    case COMMENT:
+        comment_depth = 0;
+        yybegin(YYINITIAL);
+        return new Symbol(
+            TokenConstants.ERROR, "EOF in comment"
+    );
     case YYINITIAL:
 	/* nothing special to do in the initial state */
 	break;
@@ -358,37 +389,36 @@ class CoolLexer implements java_cup.runtime.Scanner {
 					case -8:
 						break;
 					case 8:
+						{
+                                    string_buf.setLength(0);
+                                    yybegin(STRING);
+}
+					case -9:
+						break;
+					case 9:
 						{ /* Sample lexical rule for "=>" arrow.
                                      Further lexical rules should be defined
                                      here, after the last %% separator */
                                   return new Symbol(TokenConstants.DARROW); }
-					case -9:
-						break;
-					case 9:
-						{
-                                return new Symbol(TokenConstants.CLASS);
-                        }
 					case -10:
 						break;
 					case 10:
-						{ /* This rule should be the very last
-                                     in your lexical specification and
-                                     will match match everything not
-                                     matched by other lexical rules. */
-                                  System.err.println("LEXER BUG - UNMATCHED: " + yytext()); }
+						{                   
+}
 					case -11:
 						break;
 					case 11:
 						{
-                                  AbstractSymbol value =  AbstractTable.idtable.addString(yytext());
-                                  return new Symbol(TokenConstants.OBJECTID, value);
+                                  comment_depth = 1;
+                                  yybegin(COMMENT);
 }
 					case -12:
 						break;
 					case 12:
 						{
-                                  AbstractSymbol value =  AbstractTable.idtable.addString(yytext());
-                                  return new Symbol(TokenConstants.TYPEID, value);
+                                  return new Symbol (
+                                    TokenConstants.ERROR, "Unmatched *)"
+                                  );
 }
 					case -13:
 						break;
@@ -400,45 +430,148 @@ class CoolLexer implements java_cup.runtime.Scanner {
 						break;
 					case 14:
 						{
-                                  AbstractSymbol value =  AbstractTable.idtable.addString(yytext());
-                                  return new Symbol(TokenConstants.OBJECTID, value);
 }
 					case -15:
 						break;
 					case 15:
 						{
-                                  AbstractSymbol value =  AbstractTable.idtable.addString(yytext());
-                                  return new Symbol(TokenConstants.TYPEID, value);
+                                  comment_depth++;
 }
 					case -16:
 						break;
 					case 16:
 						{
-                                  AbstractSymbol value =  AbstractTable.idtable.addString(yytext());
-                                  return new Symbol(TokenConstants.OBJECTID, value);
+                                  comment_depth--;
+                                  if (comment_depth == 0) {
+                                    yybegin(YYINITIAL);
+                                  }
 }
 					case -17:
 						break;
 					case 17:
 						{
-                                  AbstractSymbol value =  AbstractTable.idtable.addString(yytext());
-                                  return new Symbol(TokenConstants.TYPEID, value);
+                                    string_buf.append(yytext());
 }
 					case -18:
 						break;
 					case 18:
 						{
-                                  AbstractSymbol value =  AbstractTable.idtable.addString(yytext());
-                                  return new Symbol(TokenConstants.OBJECTID, value);
+                                    AbstractSymbol value = 
+                                    AbstractTable.stringtable.addString(string_buf.toString());
+                                    yybegin(YYINITIAL);
+                                    return new Symbol(TokenConstants.STR_CONST, value);
 }
 					case -19:
 						break;
-					case 19:
+					case 20:
+						{ /* This rule should be the very last
+                                     in your lexical specification and
+                                     will match match everything not
+                                     matched by other lexical rules. */
+                                  System.err.println("LEXER BUG - UNMATCHED: " + yytext()); }
+					case -20:
+						break;
+					case 21:
+						{
+                                  AbstractSymbol value =  AbstractTable.idtable.addString(yytext());
+                                  return new Symbol(TokenConstants.OBJECTID, value);
+}
+					case -21:
+						break;
+					case 22:
 						{
                                   AbstractSymbol value =  AbstractTable.idtable.addString(yytext());
                                   return new Symbol(TokenConstants.TYPEID, value);
 }
-					case -20:
+					case -22:
+						break;
+					case 23:
+						{
+                                return new Symbol(TokenConstants.CLASS);
+                        }
+					case -23:
+						break;
+					case 24:
+						{
+}
+					case -24:
+						break;
+					case 25:
+						{
+                                    string_buf.append(yytext());
+}
+					case -25:
+						break;
+					case 26:
+						{ /* This rule should be the very last
+                                     in your lexical specification and
+                                     will match match everything not
+                                     matched by other lexical rules. */
+                                  System.err.println("LEXER BUG - UNMATCHED: " + yytext()); }
+					case -26:
+						break;
+					case 27:
+						{
+}
+					case -27:
+						break;
+					case 28:
+						{ /* This rule should be the very last
+                                     in your lexical specification and
+                                     will match match everything not
+                                     matched by other lexical rules. */
+                                  System.err.println("LEXER BUG - UNMATCHED: " + yytext()); }
+					case -28:
+						break;
+					case 29:
+						{ /* This rule should be the very last
+                                     in your lexical specification and
+                                     will match match everything not
+                                     matched by other lexical rules. */
+                                  System.err.println("LEXER BUG - UNMATCHED: " + yytext()); }
+					case -29:
+						break;
+					case 30:
+						{
+                                  AbstractSymbol value =  AbstractTable.idtable.addString(yytext());
+                                  return new Symbol(TokenConstants.OBJECTID, value);
+}
+					case -30:
+						break;
+					case 31:
+						{
+                                  AbstractSymbol value =  AbstractTable.idtable.addString(yytext());
+                                  return new Symbol(TokenConstants.TYPEID, value);
+}
+					case -31:
+						break;
+					case 32:
+						{
+                                  AbstractSymbol value =  AbstractTable.idtable.addString(yytext());
+                                  return new Symbol(TokenConstants.OBJECTID, value);
+}
+					case -32:
+						break;
+					case 33:
+						{
+                                  AbstractSymbol value =  AbstractTable.idtable.addString(yytext());
+                                  return new Symbol(TokenConstants.TYPEID, value);
+}
+					case -33:
+						break;
+					case 34:
+						{
+                                  AbstractSymbol value =  AbstractTable.idtable.addString(yytext());
+                                  return new Symbol(TokenConstants.OBJECTID, value);
+}
+					case -34:
+						break;
+					case 35:
+						{
+                                  AbstractSymbol value =  AbstractTable.idtable.addString(yytext());
+                                  return new Symbol(TokenConstants.TYPEID, value);
+}
+					case -35:
 						break;
 					default:
 						yy_error(YY_E_INTERNAL,false);

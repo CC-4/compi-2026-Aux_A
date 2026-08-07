@@ -19,6 +19,8 @@ import java_cup.runtime.Symbol;
     // For assembling string constants
     StringBuffer string_buf = new StringBuffer();
 
+    private int comment_depth = 0;
+
     private int curr_lineno = 1;
     int get_curr_lineno() {
 	return curr_lineno;
@@ -54,6 +56,13 @@ import java_cup.runtime.Symbol;
  *  work.  */
 
     switch(yy_lexical_state) {
+    case COMMENT:
+        comment_depth = 0;
+        yybegin(YYINITIAL);
+        return new Symbol(
+            TokenConstants.ERROR, "EOF in comment"
+    );
+    
     case YYINITIAL:
 	/* nothing special to do in the initial state */
 	break;
@@ -69,12 +78,17 @@ import java_cup.runtime.Symbol;
 %class CoolLexer
 %cup
 
+%state COMMENT
+%state STRING
+
 CLASS = [Cc][Ll][Aa][Ss][Ss]
 
 TYPE_ID = [A-Z][A-Za-z0-9_]*
 OBJECT_ID = [a-z][A-Za-z0-9_]*
 
 DIGIT = [0-9]+
+
+COMNT_SIMPLE = "--".*
 
 %%
 
@@ -84,34 +98,103 @@ DIGIT = [0-9]+
                                   return new Symbol(TokenConstants.DARROW); }
 
 
-{CLASS}                 {
+
+<YYINITIAL>{COMNT_SIMPLE} {                   
+}
+
+<YYINITIAL>"(*" {
+                                  comment_depth = 1;
+                                  yybegin(COMMENT);
+}
+
+<COMMENT>"(*" {
+                                  comment_depth++;
+                    
+}
+
+<YYINITIAL>"*)" {
+
+                                  return new Symbol (
+                                    TokenConstants.ERROR, "Unmatched *)"
+                                  );
+}
+
+<COMMENT>"*)" {
+
+                                  comment_depth--;
+                                  if (comment_depth == 0) {
+                                    yybegin(YYINITIAL);
+                                  }
+}
+
+<COMMENT>.   {
+
+}
+
+<YYINITIAL>{CLASS}                 {
                                 return new Symbol(TokenConstants.CLASS);
                         }
 
-<YYINITIAL>[ \t\r\f\u0008]    {   }
+<YYINITIAL>[ \t\r\f\u000B]    {   }
 
-<YYINITIAL>[\n]         {
+[\n]         {
                                   curr_lineno++;      
                         }
 
-{TYPE_ID}               {
+<YYINITIAL>{TYPE_ID}               {
 
                                   AbstractSymbol value =  AbstractTable.idtable.addString(yytext());
                                   return new Symbol(TokenConstants.TYPEID, value);
 }
 
 
-{OBJECT_ID}               {
+<YYINITIAL>{OBJECT_ID}               {
 
                                   AbstractSymbol value =  AbstractTable.idtable.addString(yytext());
                                   return new Symbol(TokenConstants.OBJECTID, value);
 }
 
-{DIGIT}                   {
+<YYINITIAL>{DIGIT}                   {
 
                                   AbstractSymbol value =  AbstractTable.inttable.addString(yytext());
                                   return new Symbol(TokenConstants.INT_CONST, value);
 
+}
+
+<YYINITIAL>[\"]                       {
+                                    string_buf.setLength(0);
+                                    yybegin(STRING);
+
+}
+
+<STRING>[^\"\n\u0000]*               {
+
+                                    string_buf.append(yytext());
+
+}
+
+<STRING>\\b                            {
+                                    string_buf.append('\b');
+}
+
+<STRING>\\t                            {
+                                    string_buf.append('\t');
+}
+
+<STRING>\\f                            {
+                                    string_buf.append('\f');
+}
+
+<STRING>\\n                            {
+                                    string_buf.append('\n');
+}
+
+
+<STRING>[\"]                        {
+                                    AbstractSymbol value = 
+                                    AbstractTable.stringtable.addString(string_buf.toString());
+                                    yybegin(YYINITIAL);
+                                    return new Symbol(TokenConstants.STR_CONST, value);
 }
 
 
