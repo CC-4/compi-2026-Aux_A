@@ -67,7 +67,8 @@ terminal AbstractSymbol TYPEID, OBJECTID;
 nonterminal programc program;
 nonterminal Classes class_list;
 nonterminal class_c class;
-nonterminal Features dummy_feature_list;
+nonterminal Features feature_list;
+nonterminal Feature feature;
 
 /* Precedence declarations go here. */
 
@@ -87,16 +88,37 @@ class_list
 
 /* If no parent is specified, the class inherits from the Object class */
 class
-	::= CLASS TYPEID:n LBRACE dummy_feature_list:f RBRACE SEMI
-	    {: RESULT = new class_c(curr_lineno(), n, 
-		                   AbstractTable.idtable.addString("Object"), 
-				   f, curr_filename()); :}
-	| CLASS TYPEID:n INHERITS TYPEID:p LBRACE dummy_feature_list:f RBRACE SEMI
-	    {: RESULT = new class_c(curr_lineno(), n, p, f, curr_filename()); :}
+	::= CLASS TYPEID:n LBRACE feature_list:f RBRACE SEMI
+	    {:
+			RESULT = new class_c(
+				curr_lineno(),
+				n,
+				AbstractTable.idtable.addString("Object"),
+				f,
+				curr_filename
+			);	
+		:}
+	| CLASS TYPEID:n INHERITS TYPEID:p 
+	  LBRACE feature_list:f RBRACE SEMI
+	    {: RESULT = new class_c(
+			curr_lineno(), 
+			n, 
+			p, 
+			f, 
+			curr_filename()
+			); :}
 	;
 
+
+
 /* Feature list may be empty, but no empty features in list. */
-dummy_feature_list
+feature_list
 	::= /* empty */
 	    {: RESULT = new Features(curr_lineno()); :}
+	| feature_list:fs feature:f SEMI
+	    {: RESULT = fs.appendElement(f); :}
 	;
+
+feature
+    ::= OBJECTID:name COLON TYPEID:type 
+	   {}
