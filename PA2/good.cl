@@ -1,5 +1,6 @@
-class A {
+class Main {
+    main() : Object { 
+        5+2*3  
+     };
 };
 
-Class BB__ inherits A {
-};

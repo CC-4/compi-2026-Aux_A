@@ -69,8 +69,13 @@ nonterminal Classes class_list;
 nonterminal class_c class;
 nonterminal Features feature_list;
 nonterminal Feature feature;
+nonterminal Expression expr;
+nonterminal Cases case_list;
+nonterminal Case branch;
 
 /* Precedence declarations go here. */
+precedence left PLUS, MINUS;
+precedence left MULT, DIV;
 
 program	
 	::= class_list:cl
@@ -95,7 +100,7 @@ class
 				n,
 				AbstractTable.idtable.addString("Object"),
 				f,
-				curr_filename
+				curr_filename()
 			);	
 		:}
 	| CLASS TYPEID:n INHERITS TYPEID:p 
@@ -121,4 +126,52 @@ feature_list
 
 feature
     ::= OBJECTID:name COLON TYPEID:type 
-	   {}
+	   {:
+	        RESULT = new attr(curr_lineno(), name, type,
+			                  new no_expr(curr_lineno()));
+	   :}
+
+	| OBJECTID:name LPAREN RPAREN COLON TYPEID:return_type
+	  LBRACE expr:body RBRACE
+	   {:
+	        RESULT = new method(curr_lineno(), name,
+			                    new Formals(curr_lineno()),
+								return_type, body);
+	   :}
+	;
+
+
+case_list
+    ::= branch:b
+	{: RESULT = (new Cases(curr_lineno())).appendElement(b); :}
+	| case_list:bs branch:b
+	{: RESULT = bs.appendElement(b); :}
+;
+
+branch 
+    ::= OBJECTID:name COLON TYPEID:type
+	    DARROW expr:body SEMI
+		{: RESULT = new branch(curr_lineno(), name, type, body); :}
+;
+
+expr
+    ::= INT_CONST:value
+        {:
+		   RESULT = new int_const(curr_lineno(), value);
+		:}
+	| CASE expr:subject OF case_list:branches ESAC
+        {:
+			RESULT = new typcase(curr_lineno(), subject, branches);
+		:}
+	| expr:left PLUS expr:right
+	    {:
+		    RESULT = new plus(curr_lineno(), left, right);
+		:}
+	| expr:left MULT expr:right
+	    {:
+		    RESULT = new mul(curr_lineno(), left, right);
+		:}
+
+	;
+
+
