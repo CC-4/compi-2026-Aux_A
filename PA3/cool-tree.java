@@ -315,6 +315,7 @@ class class_c extends Class_ {
     public AbstractSymbol getFilename() { return filename; }
     public AbstractSymbol getName()     { return name; }
     public AbstractSymbol getParent()   { return parent; }
+    public Features getFeatures() { return features; }
 
     public void dump_with_types(PrintStream out, int n) {
         dump_line(out, n);
@@ -328,6 +329,17 @@ class class_c extends Class_ {
 	    ((Feature)e.nextElement()).dump_with_types(out, n + 2);
         }
         out.println(Utilities.pad(n + 2) + ")");
+    }
+
+    public void semant(ClassTable ct){
+        SymbolTable objectEnv = new SymbolTable();
+        objectEnv.enterScope();
+        objectEnv.addId(TreeConstants.self,
+                        TreeConstants.SELF_TYPE);
+        objectEnv.enterScope();
+        //formals
+        objectEnv.exitScope();
+        objectEnv.exitScope();
     }
 
 }
@@ -378,6 +390,9 @@ class method extends Feature {
         dump_AbstractSymbol(out, n + 2, return_type);
 	expr.dump_with_types(out, n + 2);
     }
+
+    public AbstractSymbol getName() {return name;}
+    public Formals getFormals() {return formals;}
 
 }
 

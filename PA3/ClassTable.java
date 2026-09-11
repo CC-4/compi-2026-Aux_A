@@ -1,5 +1,7 @@
 import java.io.PrintStream;
 import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.Set;
 
 /** This class may be used to contain the semantic information such as
  * the inheritance graph.  You may use it or not as you like: it is only
@@ -183,6 +185,97 @@ class ClassTable {
 			|| name == TreeConstants.Str;
 	}
 
+	public class_c getClassByName(AbstractSymbol name){
+		return (class_c) classEnv.lookup(name);
+	}
+
+	public boolean hasClass(AbstractSymbol name){
+		return getClassByName(name) != null;
+	}
+
+	private boolean isCanonicalUserClass(class_c c) {
+		return getClassByName(c.getName()) == c;
+	}
+
+	private boolean isForbiddenParent(AbstractSymbol parent) {
+		return parent == TreeConstants.Int
+			|| parent == TreeConstants.Bool
+			|| parent == TreeConstants.Str
+			|| parent == TreeConstants.SELF_TYPE;
+	}
+
+	private int countFormals(Formals formals){
+		int count = 0;
+		for(Enumeration e = formals.getElements(); e.hasMoreElements();){
+			e.nextElement();
+			count++;
+		}
+		return count;
+	}
+
+	private void validateMain(){
+		class_c mainClass = getClassByName(TreeConstants.Main);
+		if(mainClass == null){
+			SemantErrors.noClassMain(semantError());
+			return;
+		}
+		method mainMethod = null;
+		for(Enumeration e = mainClass.getFeatures().getElements(); e.hasMoreElements();){
+			Feature f = (Feature) e.nextElement();
+			if(f instanceof method 
+			   && ((method) f).getName() == TreeConstants.main_meth) {
+					mainMethod = (method) f;
+					break;
+			}
+		}
+		if(mainMethod == null){
+			SemantErrors.noMainMethodInMainClass(semantError(mainClass));
+		} else if (countFormals(mainMethod.getFormals()) != 0) {
+			SemantErrors.mainMethodNoArgs(semantError(mainClass.getFilename(), mainMethod));
+		}
+	}
+
+	private void validateParent(Classes classes){
+		for (Enumeration e = classes.getElements(); e.hasMoreElements();){
+			class_c c = (class_c)e.nextElement();
+			if(!isCanonicalUserClass(c)) continue;
+
+			AbstractSymbol parent = c.getParent();
+			if(isForbiddenParent(parent)){
+				SemantErrors.cannotInheritClass(
+					c.getName(), parent, semantError(c));
+			} else if (!hasClass(parent)) {
+				SemantErrors.inheritsFromAnUndefinedClass(
+					c.getName(), parent, semantError(c));
+			}
+
+		}
+	}
+
+	private boolean hasInheritanceCycle(class_c start) {
+		Set<AbstractSymbol> seen = new HashSet<AbstractSymbol>();
+		class_c cursor = start;
+
+		while(cursor != null
+				&& cursor.getParent() != TreeConstants.No_class){
+					if(!seen.add(cursor.getName())) return true;
+					cursor = getClassByName(cursor.getParent());
+				}
+		return false;
+	}
+
+	private void validateCycles(Classes classes){
+		for (Enumeration e = classes.getElements(); e.hasMoreElements();){
+			class_c c = (class_c)e.nextElement();
+			if(!isCanonicalUserClass(c)) continue;
+
+			if(hasInheritanceCycle(c)){
+				SemantErrors.inheritanceCycle(
+					c.getName(), semantError(c));
+			}
+		}
+	}
+
 	private void installUserClasses(Classes classes) {
 		for (Enumeration e = classes.getElements(); e.hasMoreElements();){
 			class_c currentClass = (class_c)e.nextElement();
@@ -217,6 +310,9 @@ class ClassTable {
 
 	installBasicClasses();
 	installUserClasses(cls);
+	validateParent(cls);
+	validateCycles(cls);
+    validateMain();
     }
 
     /** Prints line number and file name of the given class.
