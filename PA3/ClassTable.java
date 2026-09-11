@@ -175,12 +175,12 @@ class ClassTable {
 
     }
 
-    private isBasicClassName(AbstractSymbol name) {
+    private boolean isBasicClassName(AbstractSymbol name) {
 		return name == TreeConstants.Object_
 		    || name == TreeConstants.IO
 			|| name == TreeConstants.Int
 			|| name == TreeConstants.Bool
-			|| name == TreeConstants.Str
+			|| name == TreeConstants.Str;
 	}
 
 	private void installUserClasses(Classes classes) {
@@ -216,7 +216,7 @@ class ClassTable {
 	classEnv.enterScope();
 
 	installBasicClasses();
-	installUserClasses();
+	installUserClasses(cls);
     }
 
     /** Prints line number and file name of the given class.

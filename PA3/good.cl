@@ -1,17 +1,5 @@
-class C {
-	a : Int;
-	b : Bool;
-	init(x : Int, y : Bool) : C {
-           {
-		a <- x;
-		b <- y;
-		self;
-           }
-	};
-};
+class Int { };
 
-Class Main {
-	main():C {
-	  (new C).init(1,true)
-	};
+class Main {
+    main() : Object { self };
 };

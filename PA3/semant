@@ -1,0 +1,2 @@
+#!/bin/sh
+java -classpath /usr/class/cc4/cool/lib:.:/usr/java/lib/rt.jar Semant $*
