@@ -1,4 +1,5 @@
 import java.io.PrintStream;
+import java.util.Enumeration;
 
 /** This class may be used to contain the semantic information such as
  * the inheritance graph.  You may use it or not as you like: it is only
@@ -6,6 +7,8 @@ import java.io.PrintStream;
 class ClassTable {
     private int semantErrors;
     private PrintStream errorStream;
+
+	private SymbolTable classEnv;
 
     /** Creates data structures representing basic Cool classes (Object,
      * IO, Int, Bool, String).  Please note: as is this method does not
@@ -164,18 +167,56 @@ class ClassTable {
 					      new no_expr(0))),
 		       filename);
 
-	/* Do somethind with Object_class, IO_class, Int_class,
-           Bool_class, and Str_class here */
+	classEnv.addId(Object_class.getName(), Object_class);
+	classEnv.addId(IO_class.getName(), IO_class);
+	classEnv.addId(Int_class.getName(), Int_class);
+	classEnv.addId(Bool_class.getName(), Bool_class);
+	classEnv.addId(Str_class.getName(), Str_class);
 
     }
-	
+
+    private isBasicClassName(AbstractSymbol name) {
+		return name == TreeConstants.Object_
+		    || name == TreeConstants.IO
+			|| name == TreeConstants.Int
+			|| name == TreeConstants.Bool
+			|| name == TreeConstants.Str
+	}
+
+	private void installUserClasses(Classes classes) {
+		for (Enumeration e = classes.getElements(); e.hasMoreElements();){
+			class_c currentClass = (class_c)e.nextElement();
+			AbstractSymbol name = currentClass.getName();
+
+		    if(isBasicClassName(name)) {
+				SemantErrors.basicClassRedefined(
+					name,
+					semantError(currentClass)
+				);
+				continue;
+			}
+
+			if(classEnv.probe(name) != null) {
+				SemantErrors.classPreviouslyDefined(
+					name,
+					semantError(currentClass)
+				);
+				continue;
+			}
+			classEnv.addId(name, currentClass);
+		}
+	}
 
 
     public ClassTable(Classes cls) {
 	semantErrors = 0;
 	errorStream = System.err;
-	
-	/* fill this in */
+    
+	classEnv = new SymbolTable();
+	classEnv.enterScope();
+
+	installBasicClasses();
+	installUserClasses();
     }
 
     /** Prints line number and file name of the given class.
