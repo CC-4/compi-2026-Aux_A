@@ -93,6 +93,9 @@ class Features extends ListNode {
     public TreeNode copy() {
         return new Features(lineNumber, copyElements());
     }
+
+    public abstract void semant(ClassTable ct, SymbolTable objectEnv,
+                                SymbolTable methodEnv, class_c currentClass);
 }
 
 
@@ -147,6 +150,12 @@ abstract class Expression extends TreeNode {
             { out.println(Utilities.pad(n) + ": " + type.getString()); }
         else
             { out.println(Utilities.pad(n) + ": _no_type"); }
+    }
+
+    public void semant(ClassTable ct, SymbolTable objectEnv,
+                       SymbolTable methodEnv, class_c currentClass) {
+            throw new UnsupportedOperationException(
+                "semant pendiente para " + getClass().getName());
     }
 
 }
@@ -272,6 +281,20 @@ class programc extends Program {
 	    System.err.println("Compilation halted due to static semantic errors.");
 	    System.exit(1);
 	}
+
+    for(Enumeration e = classes.getElements(); e.hasMoreElements();){
+        class_c currentClass = (class_c) e.nextElement();
+        if(classTable.getClassByName(currentClass.getName())
+            == currentClass) {
+                currentClass.semant(classTable);
+            }
+    }
+
+    if (classTable.errors()) {
+	    System.err.println("Compilation halted due to static semantic errors.");
+	    System.exit(1);
+	}
+
     }
 
 }
@@ -333,9 +356,34 @@ class class_c extends Class_ {
 
     public void semant(ClassTable ct){
         SymbolTable objectEnv = new SymbolTable();
+        SymbolTable methodEnv = new SymbolTable();
         objectEnv.enterScope();
+        methodEnv.enterScope();
         objectEnv.addId(TreeConstants.self,
                         TreeConstants.SELF_TYPE);
+
+        for (Enumeration e = features.getElements(); e.hasMoreElements();){
+            Feature feature = (Feature) e.nextElement();
+            if(!(feature instanceof attr)) continue;
+
+            attr currentAttr = (attr) feature;
+            AbstractSymbol attrName = currentAttr.getName();
+            if(attrName == TreeConstants.self){
+                SemantErrors.selfCannotBeTheNameOfAttr(
+                    ct.semantError(this));
+            } else if (objectEnv.probe(attrName) != null){
+                SemantErrors.attrMultiplyDefined(
+                    attrName, ct.semantError(this));
+            } else {
+                objectEnv.addId(attrName, currentAttr.getTypeDecl());
+            }
+
+        }
+
+        for (Enumeration e = features.getElements(); e.hasMoreElements();){
+            ((Feature) e.nextElement()).semant(ct, objectEnv, methodEnv, this);
+        }
+        methodEnv.exitScope();
         objectEnv.enterScope();
         //formals
         objectEnv.exitScope();
@@ -394,6 +442,41 @@ class method extends Feature {
     public AbstractSymbol getName() {return name;}
     public Formals getFormals() {return formals;}
 
+    public void semant(ClassTable ct, SymbolTable objectEnv,
+                       SymbolTable methodEnv, class_c currentClass) {
+            objectEnv.enterScope();
+            for (Enumeration e = formals.getElements(); e.hasMoreElements();) {
+                formalc formal = (formalc) e.nextElement();
+                AbstractSymbol formalName = formal.getName();
+                AbstractSymbol formalType = formal.getTypeDecl();
+                boolean canBind = true;
+
+                if(formalName == TreeConstants.self){
+                    SemantErrors.formalCannotBeSelf(
+                        ct.semantError(currentClass)
+                    );
+                    canBind = false;
+                }
+
+                if(formalType == TreeConstants.SELF_TYPE){
+                    SemantErrors.formalParamCannotHaveTypeSELF_TYPE(
+                        formalName, ct.semantError(currentClass)
+                    );
+                    formalType = TreeConstants.Object_;
+                }
+
+                if(objectEnv.probe(formalName) != null){
+                    SemantErrors.formalMultiplyDefined(
+                        formalName, ct.semantError(currentClass)
+                    );
+                    canBind = false;
+                }
+                if(canBind) objectEnv.addId(formalName, formalType);
+            }
+            expr.semant(ct, objectEnv, methodEnv, currentClass);
+            objectEnv.exitScope();
+    }
+
 }
 
 
@@ -420,6 +503,9 @@ class attr extends Feature {
     public TreeNode copy() {
         return new attr(lineNumber, copy_AbstractSymbol(name), copy_AbstractSymbol(type_decl), (Expression)init.copy());
     }
+
+    public AbstractSymbol getName() { return name; }
+    public AbstractSymbol getTypeDecl() { return type_decl; }
     public void dump(PrintStream out, int n) {
         out.print(Utilities.pad(n) + "attr\n");
         dump_AbstractSymbol(out, n+2, name);
@@ -434,6 +520,11 @@ class attr extends Feature {
         dump_AbstractSymbol(out, n + 2, name);
         dump_AbstractSymbol(out, n + 2, type_decl);
 	init.dump_with_types(out, n + 2);
+    }
+
+    public void semant(ClassTable ct, SymbolTable objectEnv,
+                       SymbolTable methodEnv, class_c currentClass){
+                    init.semant(ct, objectEnv, methodEnv, currentClass);
     }
 
 }
@@ -459,6 +550,10 @@ class formalc extends Formal {
     public TreeNode copy() {
         return new formalc(lineNumber, copy_AbstractSymbol(name), copy_AbstractSymbol(type_decl));
     }
+
+    public AbstractSymbol getName() { return name; }
+    public AbstractSymbol getTypeDecl() { return type_decl; }
+
     public void dump(PrintStream out, int n) {
         out.print(Utilities.pad(n) + "formalc\n");
         dump_AbstractSymbol(out, n+2, name);
