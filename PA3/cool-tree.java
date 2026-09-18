@@ -66,6 +66,9 @@ abstract class Feature extends TreeNode {
     }
     public abstract void dump_with_types(PrintStream out, int n);
 
+    public abstract void semant(ClassTable ct, SymbolTable objectEnv,
+                                SymbolTable methodEnv, class_c currentClass);
+
 }
 
 
@@ -94,8 +97,6 @@ class Features extends ListNode {
         return new Features(lineNumber, copyElements());
     }
 
-    public abstract void semant(ClassTable ct, SymbolTable objectEnv,
-                                SymbolTable methodEnv, class_c currentClass);
 }
 
 
@@ -333,7 +334,6 @@ class class_c extends Class_ {
         features.dump(out, n+2);
         dump_AbstractSymbol(out, n+2, filename);
     }
-
     
     public AbstractSymbol getFilename() { return filename; }
     public AbstractSymbol getName()     { return name; }
@@ -384,9 +384,6 @@ class class_c extends Class_ {
             ((Feature) e.nextElement()).semant(ct, objectEnv, methodEnv, this);
         }
         methodEnv.exitScope();
-        objectEnv.enterScope();
-        //formals
-        objectEnv.exitScope();
         objectEnv.exitScope();
     }
 
@@ -464,7 +461,6 @@ class method extends Feature {
                     );
                     formalType = TreeConstants.Object_;
                 }
-
                 if(objectEnv.probe(formalName) != null){
                     SemantErrors.formalMultiplyDefined(
                         formalName, ct.semantError(currentClass)
@@ -989,6 +985,23 @@ class plus extends Expression {
 	dump_type(out, n);
     }
 
+    public void semant(ClassTable ct, SymbolTable objectEnv,
+                        SymbolTable methodEnv, class_c currentClass){
+                            e1.semant(ct, objectEnv, methodEnv, currentClass);
+                            e2.semant(ct, objectEnv, methodEnv, currentClass);
+
+                            AbstractSymbol leftType = e1.get_type();
+                            AbstractSymbol rightType = e2.get_type();
+                            if(leftType != TreeConstants.Int
+                               || rightType != TreeConstants.Int){
+                                SemantErrors.noIntArguments(
+                                    leftType, rightType, "+",
+                                    ct.semantError(currentClass)
+                                );
+                               }
+                               set_type(TreeConstants.Int);
+                        }
+
 }
 
 
@@ -1316,6 +1329,11 @@ class int_const extends Expression {
 	dump_type(out, n);
     }
 
+    public void semant(ClassTable ct, SymbolTable o,
+                        SymbolTable m, class_c c){
+                            set_type(TreeConstants.Int);
+    }
+
 }
 
 
@@ -1347,6 +1365,11 @@ class bool_const extends Expression {
         out.println(Utilities.pad(n) + "_bool");
 	dump_Boolean(out, n + 2, val);
 	dump_type(out, n);
+    }
+
+    public void semant(ClassTable ct, SymbolTable o,
+                        SymbolTable m, class_c c){
+                            set_type(TreeConstants.Bool);
     }
 
 }
@@ -1382,6 +1405,11 @@ class string_const extends Expression {
 	Utilities.printEscapedString(out, token.getString());
 	out.println("\"");
 	dump_type(out, n);
+    }
+
+    public void semant(ClassTable ct, SymbolTable o,
+                        SymbolTable m, class_c c){
+                            set_type(TreeConstants.Str);
     }
 
 }
@@ -1476,6 +1504,11 @@ class no_expr extends Expression {
         dump_line(out, n);
         out.println(Utilities.pad(n) + "_no_expr");
 	dump_type(out, n);
+    }
+
+    public void semant(ClassTable ct, SymbolTable o,
+                        SymbolTable m, class_c c){
+                            set_type(TreeConstants.No_type);
     }
 
 }
