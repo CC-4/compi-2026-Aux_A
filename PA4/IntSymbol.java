@@ -48,6 +48,7 @@ class IntSymbol extends AbstractSymbol {
         s.println(CgenSupport.WORD + (CgenSupport.DEFAULT_OBJFIELDS + CgenSupport.INT_SLOTS)); // size
         s.print(CgenSupport.WORD);
         /* Add code to reference the dispatch table for class Int here */
+        CgenSupport.emitDispTableRef(TreeConstants.Int, s);
         s.println("");        // dispatch table
         s.println(CgenSupport.WORD + str); // integer value
     }

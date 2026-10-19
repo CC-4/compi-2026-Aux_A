@@ -1,9 +1,15 @@
-
-(*  Example cool program testing as many aspects of the code generator
-    as possible.
- *)
-
-class Main {
-  main():Int { 0 };
+class Main inherits B {
+ main() : Object { 0 };
+};
+class B inherits A { 
+    n: Int <- 4;
+    peer: IO;
+    f() : Int { 2 };
+};
+class A { 
+    title : String;
+    ready : Bool;
+    f() : Int { 1 };
+    g() : Int { 3 };
 };
 
