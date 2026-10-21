@@ -403,6 +403,17 @@ class CgenClassTable extends SymbolTable {
         }
     }
 
+    private void codeClassNameTab(){
+        str.print(CgenSupport.CLASSNAMETAB + CgenSupport.LABEL);
+        for(CgenNode node : classesByTag){
+            StringSymbol name = (StringSymbol) 
+                AbstractTable.stringtable.lookup(node.getName().getString());
+            str.print(CgenSupport.WORD);
+            name.codeRef(str);
+            str.println();
+        }
+    }
+
     private void codeClassObjTab() {
         str.println(CgenSupport.GLOBAL + CgenSupport.CLASSOBJTAB);
         str.println(CgenSupport.CLASSOBJTAB + CgenSupport.LABEL);
@@ -415,6 +426,61 @@ class CgenClassTable extends SymbolTable {
             str.println();
         }
     }
+
+    private void buildLayouts(){
+        for (CgenNode node : classesByTag){
+            Vector<attr> attrs = new Vector<attr>();
+            LinkedHashMap<AbstractSymbol, AbstractSymbol> owners =
+                new LinkedHashMap<AbstractSymbol, AbstractSymbol>();
+            if(!node.getName().equals(TreeConstants.Object_)){
+                CgenNode parent = node.getParentNd();
+                attrs.addAll(attrsByClass.get(parent));
+                owners.putAll(methodsByClass.get(parent));
+            }
+            for(Enumeration e = node.getFeatures().getElements(); 
+                e.hasMoreElements();){
+                    Feature feature = (Feature) e.nextElement();
+                    if(feature instanceof attr){
+                        attrs.add((attr) feature);
+                    } else if (feature instanceof method) {
+                        method m = (method) feature;
+                        owners.put(m.name, node.getName());
+                    }
+                }
+            attrsByClass.put(node, attrs);
+            methodsByClass.put(node, owners);
+        }
+    }
+
+    private void codeDispatchTables(){
+        for(CgenNode node : classesByTag){
+            CgenSupport.emitDispTableRef(node.getName(), str);
+            str.print(CgenSupport.LABEL);
+            LinkedHashMap<AbstractSymbol, AbstractSymbol> owners = 
+                methodsByClass.get(node);
+            for(AbstractSymbol name : owners.keySet()) {
+                str.print(CgenSupport.WORD);
+                CgenSupport.emitMethodRef(owners.get(name), name, str);
+                str.println();
+            }
+        }
+    }
+
+    private void codeDefaultValue(AbstractSymbol type){
+        str.print(CgenSupport.WORD);
+        if(type.equals(TreeConstants.Int)){
+            ((IntSymbol) AbstractTable.inttable.lookup("0")).codeRef(str);
+        }else if(type.equals(TreeConstants.Bool)){
+            BoolConst.falsebool.codeRef(str);
+        }else if(type.equals(TreeConstants.Str)){
+            ((StringSymbol) AbstractTable.stringtable.lookup("")).codeRef(str);
+        }else {
+            str.print(0);
+        }
+        str.println();
+    }
+
+
 
     /** Constructs a new class table and invokes the code generator */
     public CgenClassTable(Classes cls, PrintStream str) {
@@ -433,6 +499,7 @@ class CgenClassTable extends SymbolTable {
         stringclasstag = classTags.get(TreeConstants.Str);
         intclasstag = classTags.get(TreeConstants.Int);
         boolclasstag = classTags.get(TreeConstants.Bool);
+        buildLayouts();
 
         code();
 
@@ -456,6 +523,8 @@ class CgenClassTable extends SymbolTable {
         //                   - class_nameTab
         //                   - dispatch tables
         codeClassObjTab();
+
+        codeDispatchTables();
 
         if (Flags.cgen_debug) System.out.println("coding global text");
         codeGlobalText();
