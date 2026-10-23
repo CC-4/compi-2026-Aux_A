@@ -480,7 +480,52 @@ class CgenClassTable extends SymbolTable {
         str.println();
     }
 
+    private void codePrototypeObjects(){
+        for (CgenNode node : classesByTag){
+            Vector<attr> attrs = attrsByClass.get(node);
+            CgenSupport.emitProtObjRef(node.getName(), str);
+            str.print(CgenSupport.LABEL);
+            str.println(CgenSupport.WORD + classTags.get(node.getName()));
+            str.println(CgenSupport.WORD + 
+                (CgenSupport.DEFAULT_OBJFIELDS + attrs.size()));
+            str.print(CgenSupport.WORD);
+            CgenSupport.emitDispTableRef(node.getName(), str);
+            str.println();
+            for(attr a : attrs) {
+                codeDefaultValue(a.type_decl);
+            }
+        }
+    }
 
+
+    private void codeInitializers(){
+        for(CgenNode node : classesByTag){
+            CgenSupport.emitInitRef(node.getName(), str);
+            str.print(CgenSupport.LABEL);
+            CgenSupport.emitPrologue(3, str);
+            int inherited = 0;
+            if(!node.getName().equals(TreeConstants.Object_)){
+                CgenNode parent = node.getParentNd();
+                inherited = attrsByClass.get(parent).size();
+                CgenSupport.emitJal(parent.getName().getString()
+                    + CgenSupport.CLASSINIT_SUFFIX, str);
+            } 
+            int offset = CgenSupport.DEFAULT_OBJFIELDS + inherited;
+            for(Enumeration e = node.getFeatures().getElements();
+                e.hasMoreElements();){
+                    Feature feature = (Feature) e.nextElement();
+                    if(!(feature instanceof attr)) continue;
+                    attr a = (attr) feature;
+                    if(!(a.init instanceof no_expr)) {
+                        codeSimpleExpression(a.init);
+                        CgenSupport.emitStore(CgenSupport.ACC, offset,
+                            CgenSupport.SELF, str);
+                    }
+                    offset++;
+                }
+                CgenSupport.emitEpilogue(3, true, str);
+        }
+    }
 
     /** Constructs a new class table and invokes the code generator */
     public CgenClassTable(Classes cls, PrintStream str) {
@@ -506,6 +551,37 @@ class CgenClassTable extends SymbolTable {
         exitScope();
     }
 
+
+    private void codeSimpleExpression(Expression expr){
+        if(!(expr instanceof int_const || expr instanceof bool_const
+             || expr instanceof string_const || expr instanceof new_)){
+                throw new UnsupportedOperationException(
+                    "Falta implementar "+expr.getClass().getName());
+             }
+             expr.code(str);
+    }
+
+    private void codeMethods() {
+        for (CgenNode node : classesByTag){
+            if(node.basic()) continue;
+            for(Enumeration e = node.getFeatures().getElements();
+                e.hasMoreElements();){
+                    Feature feature = (Feature) e.nextElement();
+                    if(!(feature instanceof method)) continue;
+                    method m = (method) feature;
+                    if(m.formals.getLength() != 0) {
+                        throw new UnsupportedOperationException("
+                        parametros pendientes");
+                    }
+                    CgenSupport.emitMethodRef(node.getName(), m.name, str);
+                    str.print(CgenSupport.LABEL);
+                    CgenSupport.emitPrologue(3, str);
+                    codeSimpleExpression(m.expr);
+                    CgenSupport.emitEpilogue(3, false, str);
+                }
+        }
+    }
+
     /** This method is the meat of the code generator.  It is to be
         filled in programming assignment 5 */
     public void code() {
@@ -518,6 +594,8 @@ class CgenClassTable extends SymbolTable {
         if (Flags.cgen_debug) System.out.println("coding constants");
         codeConstants();
 
+        codeClassNameTab();
+
         //                 Add your code to emit
         //                   - prototype objects
         //                   - class_nameTab
@@ -525,6 +603,8 @@ class CgenClassTable extends SymbolTable {
         codeClassObjTab();
 
         codeDispatchTables();
+
+        codePrototypeObjects();
 
         if (Flags.cgen_debug) System.out.println("coding global text");
         codeGlobalText();

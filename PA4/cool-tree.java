@@ -1618,6 +1618,15 @@ class new_ extends Expression {
       * @param s the output stream
       * */
     public void code(PrintStream s) {
+        if(type_name.equals(TreeConstants.SELF_TYPE)) {
+            throw new UnsupportedOperationException(
+                "Aun no implementado");
+        }
+        CgenSupport.emitLoadAddress(CgenSupport.ACC,
+            type_name.getString() + CgenSupport.PROTOBJ_SUFFIX, s);
+        CgenSupport.emitJal("Object.copy", s);
+        CgenSupport.emitJal(type_name.getString()
+            + CgenSupport.CLASSINIT_SUFFIX, s);
     }
 
 }
